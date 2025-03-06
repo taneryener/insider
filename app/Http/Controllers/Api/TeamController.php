@@ -18,6 +18,6 @@ class TeamController extends Controller
 
     public function all(): JsonResource
     {
-        return TeamResource::collection($this->teamService->teams());
+        return TeamResource::collection($this->teamService->all());
     }
 }

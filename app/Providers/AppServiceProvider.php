@@ -12,6 +12,9 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(TeamService::class, function ($app) {
+            return new TeamService();
+        });
     }
 
     /**
@@ -19,6 +22,5 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->app->bind(TeamService::class, TeamService::class);
     }
 }
