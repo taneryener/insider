@@ -1,9 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\TeamController;
 
-// api routes /api/***
-
-Route::get('/league', function () {
-    return response()->json(['message' => 'league response']);
-});
+Route::get('/teams', [TeamController::class, 'all']);
