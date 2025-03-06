@@ -23,7 +23,7 @@ class MatchHelper {
         }
     }
 
-    public static function determineWinner(?int $teamAId, ?int $teamBId, int $teamAGoals, int $teamBGoals): ?int
+    public static function determineMatchResult(?int $teamAId, ?int $teamBId, int $teamAGoals, int $teamBGoals): ?int
     {
         return $teamAGoals > $teamBGoals ? $teamAId : ($teamBGoals > $teamAGoals ? $teamBId : null);
     }

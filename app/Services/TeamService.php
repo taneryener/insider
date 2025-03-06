@@ -24,10 +24,10 @@ class TeamService
 
         MatchHelper::adjustForDraw($teamAPower, $teamBPower, $teamAGoals, $teamBGoals);
 
-        $winnerId = MatchHelper::determineWinner($teamA->id, $teamB->id, $teamAGoals, $teamBGoals);
+        $winnerId = MatchHelper::determineMatchResult($teamA->id, $teamB->id, $teamAGoals, $teamBGoals);
 
         return [
-            'winner_id' => $winnerId,
+            'winner_id'   => $winnerId,
             'teamA_goals' => $teamAGoals,
             'teamB_goals' => $teamBGoals
         ];
