@@ -14,12 +14,12 @@ return new class extends Migration
         Schema::create('fixture',
             function (Blueprint $table) {
                 $table->id();
+                $table->foreignId('home_team_id')->constrained('teams','id')->onDelete('cascade');
+                $table->foreignId('away_team_id')->constrained('teams','id')->onDelete('cascade');
+                $table->integer('home_score')->nullable();
+                $table->integer('away_score')->nullable();
                 $table->integer('week');
-                $table->integer('home_score');
-                $table->integer('away_score');
-                $table->foreignId('home_team_id')->constrained()->onDelete('cascade');
-                $table->foreignId('away_team_id')->constrained()->onDelete('cascade');
-                $table->enum('result', ['WIN', 'LOSE', 'DRAW'])->nullable();
+                $table->tinyInteger('result')->nullable(); // 1 home 0 draw 2 away
                 $table->timestamps();
                 $table->softDeletes();
             });

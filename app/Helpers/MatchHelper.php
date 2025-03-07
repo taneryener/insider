@@ -2,13 +2,15 @@
 
 namespace App\Helpers;
 
+use App\Models\Team;
+
 class MatchHelper {
-    public static function generateTotalGoals(int $teamAChance, int $teamBChance): int
+    public static function generateTotalGoals(int $homeTeamChance, int $awayTeamChance): int
     {
-        $avgPower        = ($teamAChance + $teamBChance) / 2;
-        $powerDifference = abs($teamAChance - $teamBChance);
+        $avgPower        = ($homeTeamChance + $awayTeamChance) / 2;
+        $powerDifference = abs($homeTeamChance - $awayTeamChance);
         $baseGoals       = ceil($avgPower / 30);
-        $randomFactor    = random_int(0, max(2, 7 - floor($powerDifference / 15)));
+        $randomFactor    = random_int(0, max(1, 5 - floor($powerDifference / 15)));
 
         return max(0, $baseGoals + $randomFactor);
     }
@@ -28,4 +30,21 @@ class MatchHelper {
         return $teamAGoals > $teamBGoals ? $teamAId : ($teamBGoals > $teamAGoals ? $teamBId : null);
     }
 
+    public static function weekCount(int $teamCount): int
+    {
+        return ($teamCount - 1) * 2;
+    }
+    public static function count(int $teamCount): int
+    {
+        return $teamCount * ($teamCount - 1);
+    }
+
+    public static function calculateTeamPower(Team $team, bool $isHome = true): int
+    {
+        return ($isHome ? $team->home_power : $team->away_power)
+            + $team->supporter_strength
+            + $team->goalkeeper_strength
+            + $team->attacker_strength
+            + $team->defence_strength;
+    }
 }

@@ -19,13 +19,10 @@ class TeamControllerTest extends TestCase
 
     public function test_returns_all_teams(): void
     {
-        $teams = Team::factory()->count(32)->create();
-
-        $response = $this->getJson(route('teams'))
-                         ->assertJsonCount($teams->count(),'data')
-                         ->assertOk();
-
-        $response->assertStatus(200);
+        $teams = Team::factory()->count(16)->create();
+        $this->getJson(route('teams'))
+             ->assertJsonCount($teams->count(),'data') // checks team count
+             ->assertOk();
     }
 }
 
