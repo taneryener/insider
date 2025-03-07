@@ -16,4 +16,5 @@ Route::prefix('/api')->group(function () {
     Route::get('/fixture', [FixtureController::class, 'fixture'])->name('fixture');
     Route::get('/fixture/next-match', [FixtureController::class, 'nextMatch'])->name('fixture.next-match');
     Route::get('/fixture/weeks', [FixtureController::class, 'weeks'])->name('fixture.weeks');
+    Route::get('/fixture/predictions', [FixtureController::class, 'predictions'])->name('fixture.predictions');
 });

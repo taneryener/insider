@@ -75,5 +75,4 @@ class FixtureController extends Controller
 
         return response()->json($prediction);
     }
-
 }
