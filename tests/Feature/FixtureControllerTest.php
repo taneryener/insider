@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Helpers\MatchHelper;
 use App\Models\Fixture;
 use App\Models\Team;
+use App\Repositories\FixtureRepository;
+use App\Services\FixtureService;
 use Database\Seeders\TeamSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -60,6 +62,7 @@ class FixtureControllerTest extends TestCase
                          'away_team',
                          'home_score',
                          'away_score',
+                         'result'
                      ],
                  ],
              ])
@@ -69,22 +72,28 @@ class FixtureControllerTest extends TestCase
         $this->assertGreaterThan(Fixture::whereNull('result')->count(), $availableMatches);
     }
 
-    public function test_plays_next_match(): void
+    public function test_plays_next_weeks_matches(): void
     {
         $this->prepareFixture();
-        $availableMatchCount = Fixture::whereNull('result')->count();
+        $teamCount = Team::all()->count();
+        $totalMatchCount = MatchHelper::count($teamCount);
 
         $this->postJson(route('fixture.play'))
-             ->assertJson([
+             ->assertJsonStructure([
                 'data' => [
-                    'week' => 1,
-                    'home_team' => [],
-                    'away_team' => [],
+                    '*' => [
+                        'week',
+                        'home_team',
+                        'away_team',
+                        'home_score',
+                        'away_score',
+                        'result',
+                    ],
                 ],
              ])
              ->assertOk();
 
-        $this->assertEquals($availableMatchCount ,Fixture::whereNull('result')->count() + 1);
+        $this->assertEquals($totalMatchCount ,Fixture::whereNull('result')->count() + MatchHelper::weeklyMatchCount($teamCount));
     }
 
     public function test_removes_fixture(): void
@@ -95,5 +104,27 @@ class FixtureControllerTest extends TestCase
              ->assertOk();
 
         $this->assertTrue(0 == Fixture::all()->count());
+    }
+
+    public function test_predictions(): void
+    {
+        $this->prepareFixture();
+        $fixtureService    = app(FixtureService::class);
+        $fixtureRepository = app(FixtureRepository::class);
+        $matches           = $fixtureRepository->matches()->take(3);
+
+        $fixtureService->playAll($matches);
+
+        $this->getJson(route('fixture.predictions'))
+             ->assertJsonStructure([
+                 'data' => [
+                     '*' => [
+                         'id',
+                         'name',
+                         'percentage'
+                     ]
+                 ]
+             ])
+             ->assertOk();
     }
 }

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\FixtureResource;
+use App\Http\Resources\PredictionResource;
 use App\Models\Fixture;
 use App\Repositories\FixtureRepository;
 use App\Services\FixtureService;
@@ -26,6 +27,8 @@ class FixtureController extends Controller
 
     public function create(): JsonResource
     {
+        $this->fixtureRepository->deleteAll(); //removes old fixuture data as softdelete
+
         $matches  = $this->fixtureService->create($this->teamService->all());
         $fixtures = $this->fixtureService->save($matches);
 
@@ -42,22 +45,26 @@ class FixtureController extends Controller
         return FixtureResource::collection($this->fixtureService->fixture());
     }
 
-    public function play(): JsonResource
+    public function nextMatches(): JsonResource
     {
-        $match       = $this->fixtureRepository->nextMatch();
-        $matchResult = $this->fixtureService->playMatch($match);
+        $matches        = $this->fixtureRepository->weekMatches($this->fixtureRepository->nextWeek());
 
-        return new FixtureResource($matchResult);
+        return FixtureResource::collection($matches);
+    }
+
+    public function playNextWeek(): JsonResource
+    {
+        $week        = $this->fixtureRepository->nextWeek();
+        $matches     = $this->fixtureRepository->weekMatches($week);
+        $matchResult = $this->fixtureService->playAll($matches);
+
+        return FixtureResource::collection($matchResult);
     }
 
     public function playAll(): JsonResource
     {
-        $matchResults   = [];
         $matches        = $this->fixtureRepository->matches();
-
-        $matches->each(function ($match) use (&$matchResults) {
-            $matchResults[] = $this->fixtureService->playMatch($match);
-        });
+        $matchResults   = $this->fixtureService->playAll($matches);
 
         return FixtureResource::collection($matchResults);
     }
@@ -69,10 +76,16 @@ class FixtureController extends Controller
         return response()->json(['message'=>'fixture deleted']);
     }
 
-    public function predictions(): JsonResponse
+    public function predictions(): JsonResource
     {
-        $prediction = $this->fixtureRepository->predictions();
+        $prediction = $this->fixtureService->predictions();
 
-        return response()->json($prediction);
+        if (!$prediction->count()) {
+            response()->json([
+                'message' => 'no matches found'
+            ]);
+        }
+
+        return PredictionResource::collection($prediction);
     }
 }

@@ -3,7 +3,6 @@
 namespace App\Repositories;
 
 use App\Models\Fixture;
-use App\Models\Team;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
@@ -18,13 +17,6 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class FixtureRepository
 {
-    private TeamRepository $teamRepository;
-
-    public function __construct(TeamRepository $teamRepository)
-    {
-        $this->teamRepository = $teamRepository;
-    }
-
     public function fixture() : Collection
     {
         return Fixture::all();
@@ -43,14 +35,20 @@ class FixtureRepository
         return $fixture;
     }
 
-    public function nextMatch() : Fixture
+    public function nextWeek() : int
     {
-        return Fixture::whereNull('home_score')
-                      ->whereNull('away_score')
+        return Fixture::select('week')
+                      ->whereNull('result')
                       ->orderBy('week')
                       ->get()
-                      ->first();
+                      ->firstOrFail()->week;
     }
+
+    public function week(int $id): Fixture
+    {
+        return Fixture::where('week', $id)->get();
+    }
+
     public function matches() : Collection
     {
         return Fixture::whereNull('home_score')
@@ -66,45 +64,18 @@ class FixtureRepository
         });
     }
 
-    public function predictions(): array
+    public function weekMatches(int $week) : Collection
     {
-        $standings = $this->teamRepository->points();
+        return Fixture::where('week', $week)
+                      ->whereNull('result')
+                      ->get();
+    }
 
-        $remainingFixtures = Fixture::whereNull('home_score')
-                                    ->whereNull('away_score')
-                                    ->get();
-
-        foreach ($remainingFixtures as $fixture) {
-            $homeTeam = $standings[$fixture->home_team_id];
-            $awayTeam = $standings[$fixture->away_team_id];
-
-            $homeWinProbability = ($homeTeam->wins * 3 + $homeTeam->draws) / max(1, $homeTeam->wins + $homeTeam->draws + $homeTeam->losses) * 100;
-            $awayWinProbability = ($awayTeam->wins * 3 + $awayTeam->draws) / max(1, $awayTeam->wins + $awayTeam->draws + $awayTeam->losses) * 100;
-            $drawProbability    = 100 - ($homeWinProbability + $awayWinProbability);
-
-            $randomOutcome = rand(1, 100);
-
-            if ($randomOutcome <= $homeWinProbability) {
-                $standings[$fixture->home_team_id]->wins   += 1;
-                $standings[$fixture->home_team_id]->points += 3;
-                $standings[$fixture->away_team_id]->losses += 1;
-            } elseif ($randomOutcome <= ($homeWinProbability + $drawProbability)) {
-                $standings[$fixture->home_team_id]->draws  += 1;
-                $standings[$fixture->home_team_id]->points += 1;
-                $standings[$fixture->away_team_id]->draws  += 1;
-                $standings[$fixture->away_team_id]->points += 1;
-            } else {
-                $standings[$fixture->away_team_id]->wins   += 1;
-                $standings[$fixture->away_team_id]->points += 3;
-                $standings[$fixture->home_team_id]->losses += 1;
-            }
-        }
-
-        $sortedStandings = $standings->sortByDesc('points')->values();
-
-        return [
-            'predicted_winner' => $sortedStandings->first()->name,
-            'final_standings' => $sortedStandings,
-        ];
+    public function unplayedMatchWeeks(): Collection
+    {
+        return Fixture::select('week')
+                      ->distinct('week')
+                      ->whereNull('result')
+                      ->get();
     }
 }

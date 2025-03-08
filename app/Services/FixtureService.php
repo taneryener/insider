@@ -4,17 +4,18 @@ namespace App\Services;
 
 use App\Helpers\MatchHelper;
 use App\Models\Fixture;
-use App\Models\Team;
 use App\Repositories\FixtureRepository;
 use Illuminate\Support\Collection;
 
 class FixtureService
 {
     private FixtureRepository $repository;
+    private TeamService $teamService;
 
-    public function __construct(FixtureRepository $fixtureRepository)
+    public function __construct(FixtureRepository $fixtureRepository, TeamService $teamService)
     {
         $this->repository = $fixtureRepository;
+        $this->teamService = $teamService;
     }
 
     public function fixture(): Collection
@@ -24,7 +25,6 @@ class FixtureService
 
     public function create(Collection $teams): Collection
     {
-        $teams     = $teams->shuffle();
         $teamCount = $teams->count();
         $isOdd     = $teamCount % 2 !== 0;
 
@@ -33,23 +33,22 @@ class FixtureService
             $teamCount++;
         }
 
-        $weeks   = ($teamCount - 1) * 2;
+        $weeks   = MatchHelper::weekCount($teamCount);
         $fixture = collect();
+
+        $teamsArray = $teams->all();
+        $fixedTeam  = array_shift($teamsArray);
 
         for ($week = 0; $week < $weeks; $week++) {
             $matches = collect();
 
             for ($i = 0; $i < $teamCount / 2; $i++) {
-                $homeTeamOrder = $i;
-                $awayTeamOrder = $teamCount - 1 - $i;
+                $homeTeam = ($i == 0) ? $fixedTeam : $teamsArray[$i - 1];
+                $awayTeam = $teamsArray[$teamCount - 2 - $i];
 
-                if ($week >= $weeks / 2) {
-                    $homeTeamOrder = $teamCount - 1 - $i;
-                    $awayTeamOrder = $i;
+                if ($week % 2 == 1) {
+                    [$homeTeam, $awayTeam] = [$awayTeam, $homeTeam];
                 }
-
-                $homeTeam = $teams[$homeTeamOrder];
-                $awayTeam = $teams[$awayTeamOrder];
 
                 if ($homeTeam->id !== null && $awayTeam->id !== null) {
                     $matches->push([
@@ -60,9 +59,9 @@ class FixtureService
                 }
             }
 
-            $matches->flatMap(function ($match) use ($fixture) {
-                $fixture->push($match);
-            });
+            array_unshift($teamsArray, array_pop($teamsArray));
+
+            $fixture = $fixture->merge($matches);
         }
 
         return $fixture;
@@ -93,12 +92,56 @@ class FixtureService
 
         $winnerTeamId = MatchHelper::determineMatchResult($homeTeam->id, $awayTeam->id, $homeTeamGoals, $awayTeamGoals);
 
+
         $match->home_score = $homeTeamGoals;
         $match->away_score = $awayTeamGoals;
-        $match->result     = ($winnerTeamId == $homeTeam->id ? 1 : ($winnerTeamId == $awayTeam->id ? 2 : 0));
+        $match->result     = ($winnerTeamId == $homeTeam->id) ? 1
+                             : (($winnerTeamId == $awayTeam->id) ? 2 : 0);
 
         $match->save();
 
         return $match;
+    }
+
+    public function playAll(Collection $matches): Collection
+    {
+        $matchResults   = collect();
+        $matches->each(function ($match) use (&$matchResults) {
+            $matchResults->push($this->playMatch($match));
+        });
+
+        return $matchResults;
+    }
+
+    public function predictions() : Collection
+    {
+        $predictions            = collect();
+        $totalWeekCount         = Fixture::distinct('week')->count();
+        $unplayedMatchWeekCount = $this->repository->unplayedMatchWeeks()->count();
+
+        if ($totalWeekCount == $unplayedMatchWeekCount || $unplayedMatchWeekCount == 0) {
+            return collect();
+        }
+
+        $points                 = $this->teamService->points()
+                                                    ->sortByDesc(function ($point) {
+                                                        return $point['points'];
+                                                    });
+
+        $pointSum               = $points->sum('points') * $unplayedMatchWeekCount;
+        $championPredictions    = $this->teamService->all();
+
+        $championPredictions->each(function ($championPrediction) use ($unplayedMatchWeekCount, $points, $pointSum, $predictions) {
+            $teamsPoint = $points->where('id', $championPrediction->id)->first()['points'] * $unplayedMatchWeekCount;
+            $percentage = ($teamsPoint / $pointSum) * 100;
+
+            $predictions->push([
+                'id'         => $championPrediction->id,
+                'name'       => $championPrediction->name,
+                'percentage' => $percentage
+            ]);
+        });
+
+        return $predictions->sortByDesc('percentage');
     }
 }

@@ -2,53 +2,75 @@
 
 namespace App\Repositories;
 
+use App\Helpers\MatchHelper;
 use App\Models\Team;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Collection;
 
 class TeamRepository
 {
-    public function all() : Collection
+    public function points(): Collection
     {
-        return Team::all();
-    }
+        $homeDrawResults = Team::join('fixture', 'teams.id', '=', 'fixture.home_team_id')
+            ->select('teams.id', 'teams.name')
+            ->selectRaw('SUM(fixture.home_score) as total_goals,
+                         SUM(fixture.home_score - fixture.away_score) as goal_difference,
+                         COUNT(fixture.id) as draw_count')
+            ->where('fixture.result', MatchHelper::DRAW)
+            ->groupBy('teams.id', 'teams.name')
+            ->get();
 
-    public function points() : Collection
-    {
-        return Team::select('teams.id', 'teams.name')
-                    ->withCount([
-                        // Wins
-                        'homeMatches as home_wins' => fn($q) => $q->where('result', 1),
-                        'awayMatches as away_wins' => fn($q) => $q->where('result', 2),
+        $homeWinResults = Team::join('fixture', 'teams.id', '=', 'fixture.home_team_id')
+            ->select('teams.id', 'teams.name')
+            ->selectRaw('SUM(fixture.home_score) as total_goals,
+                         SUM(fixture.home_score - fixture.away_score) as goal_difference,
+                         COUNT(fixture.id) as win_count')
+            ->where('fixture.result', MatchHelper::HOME_WIN)
+            ->groupBy('teams.id', 'teams.name')
+            ->get();
 
-                        // Draws
-                        'homeMatches as home_draws' => fn($q) => $q->where('result', 0),
-                        'awayMatches as away_draws' => fn($q) => $q->where('result', 0),
+        $homeLoseResults = Team::join('fixture', 'teams.id', '=', 'fixture.home_team_id')
+            ->select('teams.id', 'teams.name')
+            ->selectRaw('SUM(fixture.home_score) as total_goals,
+                        SUM(fixture.home_score - fixture.away_score) as goal_difference,
+                        COUNT(fixture.id) as loss_count')
+            ->where('fixture.result', MatchHelper::HOME_LOSS)
+            ->groupBy('teams.id', 'teams.name')
+            ->get();
 
-                        // Losses
-                        'homeMatches as home_losses' => fn($q) => $q->where('result', 2),
-                        'awayMatches as away_losses' => fn($q) => $q->where('result', 1),
+        $awayDrawResults = Team::join('fixture', 'teams.id', '=', 'fixture.away_team_id')
+            ->select('teams.id', 'teams.name')
+            ->selectRaw('SUM(fixture.away_score) as total_goals,
+                         SUM(fixture.away_score - fixture.home_score) as goal_difference,
+                         COUNT(fixture.id) as draw_count')
+            ->where('fixture.result', MatchHelper::DRAW)
+            ->groupBy('teams.id','teams.name')
+            ->get();
 
-                        // Goals Scored
-                        'homeMatches as home_goals_for' => fn($q) => $q->selectRaw('COALESCE(SUM(home_score), 0)'),
-                        'awayMatches as away_goals_for' => fn($q) => $q->selectRaw('COALESCE(SUM(away_score), 0)'),
+        $awayWinResults = Team::join('fixture', 'teams.id', '=', 'fixture.away_team_id')
+            ->select('teams.id', 'teams.name')
+            ->selectRaw('SUM(fixture.away_score) as total_goals,
+                         SUM(fixture.away_score - fixture.home_score) as goal_difference,
+                         COUNT(fixture.id) as win_count')
+            ->where('fixture.result', MatchHelper::AWAY_WIN)
+            ->groupBy('teams.id','teams.name')
+            ->get();
 
-                        // Goals Conceded
-                        'homeMatches as home_goals_against' => fn($q) => $q->selectRaw('COALESCE(SUM(away_score), 0)'),
-                        'awayMatches as away_goals_against' => fn($q) => $q->selectRaw('COALESCE(SUM(home_score), 0)'),
-                    ])
-                    ->get()
-                    ->map(function ($team) {
-                        $team->wins            = $team->home_wins + $team->away_wins;
-                        $team->draws           = $team->home_draws + $team->away_draws;
-                        $team->losses          = $team->home_losses + $team->away_losses;
-                        $team->goals_for       = $team->home_goals_for + $team->away_goals_for;
-                        $team->goals_against   = $team->home_goals_against + $team->away_goals_against;
-                        $team->goal_difference = $team->goals_for - $team->goals_against;
-                        $team->points          = ($team->wins * 3) + ($team->draws * 1);
+        $awayLoseResults = Team::join('fixture', 'teams.id', '=', 'fixture.away_team_id')
+            ->select('teams.id', 'teams.name')
+            ->selectRaw('SUM(fixture.away_score) as total_goals,
+                         SUM(fixture.away_score - fixture.home_score) as goal_difference,
+                         COUNT(fixture.id) as loss_count')
+            ->where('fixture.result', MatchHelper::AWAY_LOSS)
+            ->groupBy('teams.id','teams.name')
+            ->get();
 
-                        return $team;
-                    })
-                    ->sortByDesc('points')
-                    ->values();
+        $points = collect();
+
+        return $points->merge($homeDrawResults)
+                      ->merge($homeWinResults)
+                      ->merge($homeLoseResults)
+                      ->merge($awayDrawResults)
+                      ->merge($awayWinResults)
+                      ->merge($awayLoseResults);
     }
 }

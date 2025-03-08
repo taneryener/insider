@@ -5,6 +5,18 @@ namespace App\Helpers;
 use App\Models\Team;
 
 class MatchHelper {
+
+    public const HOME_DRAW = 0;
+    public const DRAW = 0;
+    public const HOME_WIN = 1;
+    public const AWAY_WIN = 2;
+    public const HOME_LOSS = 2;
+    public const AWAY_LOSS = 1;
+
+    public const WIN_COEFFICIENT  = 3;
+    public const LOSS_COEFFICIENT = 0;
+    public const DRAW_COEFFICIENT = 1;
+
     public static function generateTotalGoals(int $homeTeamChance, int $awayTeamChance): int
     {
         $avgPower        = ($homeTeamChance + $awayTeamChance) / 2;
@@ -34,9 +46,15 @@ class MatchHelper {
     {
         return ($teamCount - 1) * 2;
     }
+
     public static function count(int $teamCount): int
     {
         return $teamCount * ($teamCount - 1);
+    }
+
+    public static function weeklyMatchCount(int $teamCount): int
+    {
+        return $teamCount * ($teamCount - 1) / self::weekCount($teamCount);
     }
 
     public static function calculateTeamPower(Team $team, bool $isHome = true): int
@@ -46,5 +64,12 @@ class MatchHelper {
             + $team->goalkeeper_strength
             + $team->attacker_strength
             + $team->defence_strength;
+    }
+
+    public static function calculateTeamPoint(int $draws,int $wins, int $losses): int
+    {
+        return $draws  * self::DRAW_COEFFICIENT +
+               $wins   * self::WIN_COEFFICIENT +
+               $losses * self::LOSS_COEFFICIENT;
     }
 }

@@ -2,13 +2,9 @@
 
 namespace App\Http\Resources;
 
-use App\Models\Fixture;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-/**
- * @property Fixture $resource
- */
 class FixtureResource extends JsonResource
 {
     /**
@@ -20,10 +16,11 @@ class FixtureResource extends JsonResource
     {
         return [
             'week'       => $this->resource->week + 1,
-            'home_team'  => $this->resource->homeTeam(),
-            'away_team'  => $this->resource->awayTeam(),
+            'home_team'  => $this->resource->homeTeam->toArray(),
+            'away_team'  => $this->resource->awayTeam->toArray(),
             'home_score' => $this->resource->home_score,
             'away_score' => $this->resource->away_score,
+            'result'     => $this->resource->result,
         ];
     }
 }
